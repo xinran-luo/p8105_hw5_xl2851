@@ -9,7 +9,6 @@ output: github_document
 library(tidyverse)
 library(tidyr)
 library(stringr)
-library(readexcel)
 ```
 
 # problem 1
@@ -93,15 +92,61 @@ sim_regression = function(n=30, beta0 = 2, beta1 = 0，sigma=50) {
   
   sim_data = tibble(
     xi1 = rnorm(n, mean = 0, sd = 1),
-    yi = beta0 + beta1 * x + rnorm(n, 0, 1)
+    yi = beta0 + beta1 * xi1 + rnorm(n, 0, sigma)
   )
   
-  ls_fit = lm(y ~ x, data = sim_data)
+  ls_fit = lm(yi ~ xi1, data = sim_data)
   
-  tibble(
-    beta0_hat = coef(ls_fit)[1],
-    beta1_hat = coef(ls_fit)[2]
+    tibble(
+    beta1_hat = broom::tidy(ls_fit)$estimate[2],
+    p_value = broom::tidy(ls_fit)$p.value[2],
+    alpha=0.05
   )
+}
+
+sim_results1 = 
+  rerun(10000, sim_regression(30, 2, 0)) %>% 
+  bind_rows()
+```
+
+```{r}
+beta1_list = list("beta11"  = 1, 
+              "beta12"  = 2, 
+              "beta13" = 3, 
+              "beta14" = 4,
+              "beta15" = 5,
+              "beta16" = 6)
+output = vector("list", length = 6)
+
+for (i in 1:6) {
+  output[[i]] = rerun(10000, sim_regression(beta1_list[[i]])) %>% 
+    bind_rows
 }
 ```
 
+```{r}
+sim_results2 = 
+  tibble(beta1 = c(1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output_lists = map(.x = beta1, ~rerun(10000, sim_regression(beta1 = .x))),
+    estimate_dfs = map(output_lists, bind_rows)) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_dfs)
+```
+
+```{r}
+  sim_results2%>%
+  group_by(beta1)%>%
+  mutate(
+    power_test=sum(p_value<0.05)/10000
+    ) %>% 
+  ungroup()%>%
+  ggplot(aes(x = beta1, y = power_test, color=beta1)) + 
+  geom_point()+geom_line()+
+  labs(
+    title = "Association between effect size and power",
+    x = "effect size",
+    y = "power"
+  ) 
+```
+From the plot above we can see as effect size increases, power increases.
