@@ -84,7 +84,7 @@ df%>%
   ) 
 ```
 
-comments:We can see an obvious increasing trend of values of observations over time in the experiment group.
+The spaghetti plot shows observations on each subject over time. We can see an obvious increasing trend of values of observations over time in the experiment group.
 
 # problem 3
 ```{r}
@@ -135,12 +135,11 @@ sim_results2 =
 ```
 
 ```{r}
-  sim_results2%>%
+sim_results2%>%
+  filter(p_value<0.05)%>%
   group_by(beta1)%>%
-  mutate(
-    power_test=sum(p_value<0.05)/10000
-    ) %>% 
-  ungroup()%>%
+  summarise(num_power=n())%>%
+  mutate(power_test=num_power/10000)%>%
   ggplot(aes(x = beta1, y = power_test, color=beta1)) + 
   geom_point()+geom_line()+
   labs(
@@ -149,4 +148,38 @@ sim_results2 =
     y = "power"
   ) 
 ```
-From the plot above we can see as effect size increases, power increases.
+
+The plot shows the proportion of times the null was rejected (the power of the test) on the y axis and the true value of β1 on the x axis.We can see as effect size increases, power increases.
+
+
+```{r}
+sim_results2%>%
+  group_by(beta1)%>%
+  mutate(
+    avg_beta1=mean(beta1_hat)
+    ) %>% 
+  ggplot(aes(x = beta1, y = avg_beta1, color=beta1)) + 
+  geom_point()+geom_line()+
+  labs(
+    title = "Association between average estimate of beta1 and true beta1",
+    x = "True value of beta1",
+    y = "average estimate of beta1_hat"
+  )
+```
+
+```{r}
+sim_results2%>%
+  group_by(beta1)%>%
+  filter(p_value<0.05)%>%
+  mutate(
+    avg_beta1_reject=mean(beta1_hat)
+    ) %>% 
+  ggplot(aes(x = beta1, y = avg_beta1_reject, color=beta1)) + 
+  geom_point()+geom_line()+
+  labs(
+    title = "Association between average estimate of beta1 (null was rejected) and true beta1",
+    x = "True value of beta1",
+    y = "average estimate of beta1_hat(null was rejected)"
+  )
+```
+The sample average estimate of beta1 when the null is rejected does not equal to the true value of beta1. The average estimate of beta1 is larger than the true beta1. When the null is true, beta1 equals to 0. When we only include samples for which the null was rejected, we excluded the beta1s whose values are around 0. Without whose smaller values, the average of the remaining beta1s would be bigger.
